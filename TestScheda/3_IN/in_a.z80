@@ -1,0 +1,30 @@
+; z80asm -o in_a.bin -l in_a.z80 2> in_a.out 
+
+OUT_A: EQU 0xC
+IN_A: EQU 0xC
+OUT_B: EQU 0x10
+IN_B: EQU 0x10
+
+    ORG 0x8000
+boot:
+    xor A
+
+loop:
+    in A, (IN_A)
+    out (OUT_A), A
+    inc A
+
+    ld de, 100
+    call delay
+       
+    jp loop
+
+delay:
+    ex AF, AF'
+delay1_loop:
+    dec de
+    ld a,d
+    or e
+    jp nz, delay1_loop
+    ex AF, AF'
+    ret
