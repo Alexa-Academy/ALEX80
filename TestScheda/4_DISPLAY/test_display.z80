@@ -1,0 +1,235 @@
+; z80asm -o test_display.bin -l test_display.z80 2> test_display.out 
+
+; Si ipotizza un clock da 3.6864 MHz -> periodo 270 ns
+
+IO_OUT_B: EQU 0x10
+
+RS_PIN_SET:     EQU 4 
+EN_PIN_SET:     EQU 8
+EN_PIN_RESET:   EQU 0f7h
+
+
+    ORG 8000h
+boot:
+    call init_display
+
+    ld HL, string
+    call print_string
+
+    ld HL, 0
+main_lp:
+    push HL
+    
+    call set_cursor
+    
+    ld DE, num_str
+    call Num2Dec
+    ld HL, num_str
+    call print_string
+    pop HL
+
+    inc HL
+
+    ld DE, 60000
+    call delay
+
+    ;call clear_display
+
+    jp main_lp
+
+; Inizializzazione display
+init_display:
+    ; Attende 50 ms
+    ld DE, 3900
+    call delay
+    
+    ; Mette a 0 EN e RS (ed in generale tutti i pin della porta)
+    xor A
+    OUT (IO_OUT_B), A
+   
+    ; we start in 8bit mode, try to set 4 bit mode
+    ld A, 30h
+    call write_bits
+    ld DE, 323    
+    call delay ; Attesa di 4,2 ms (da datasheet 4,1 ms)
+
+    ; second try
+    ld A, 30h
+    ld DE, 323
+    call delay ; Attesa di 4,2 ms 
+    call write_bits
+
+    ; third go!
+    ld A, 30h
+    call write_bits  
+    ld DE, 12
+    call delay
+       ; Il datasheet non richiede ritardo
+       ; La libreria Arduino mette anche un ritardo di 150 µs
+
+    ; Imposta interfaccia a 4 bit
+    ld A, 20h
+    call write_bits
+    
+    ; finally, set # lines, font size, etc.
+    ld C, 28h   ; LCD_FUNCTIONSET 0x20  LCD_2LINE 0x08  LCD_1LINE 0x00
+    call write_cmd
+
+    ; turn the display on with no cursor or blinking default
+    ld C, 0ch   ; LCD_DISPLAYCONTROL 0x08  LCD_DISPLAYON  0x04   LCD_CURSOROFF  0x00   LCD_BLINKOFF 0x00
+    call write_cmd  
+
+    call clear_display
+
+    ; Entrymode set: entry left, entry shift decrement
+    ld C, 06h    ; LCD_ENTRYMODESET 0x04   LCD_ENTRYLEFT 0x02  LCD_ENTRYSHIFTDECREMENT 0x00
+    call write_cmd
+
+    ld DE, 76
+    call delay
+
+    ret  
+
+; Cancella display
+clear_display:
+    ld C, 1
+    call write_cmd  
+    ld DE, 200
+    call delay
+    ret
+
+; Imposta posizione del cursore
+set_cursor:
+    ld C, 0C0h
+    call write_cmd  
+    ld DE, 200
+    call delay
+    ret
+
+delay:
+    ex AF, AF'
+delay1_loop:
+    dec DE
+    ld A,D
+    or E
+    jp nz, delay1_loop
+    ex AF, AF'
+    ret
+
+
+
+; In A il valore da mandare in uscita
+write_bits:
+    push DE
+
+    and EN_PIN_RESET
+    out (IO_OUT_B), A
+    ld DE, 7
+    call delay
+
+    or EN_PIN_SET
+    out (IO_OUT_B), A
+    ld DE, 7
+    call delay
+
+    and EN_PIN_RESET
+    out (IO_OUT_B), A
+    ld DE, 7
+    call delay
+
+    pop DE
+
+    ret
+
+; In C il byte da far uscire
+write_cmd:
+    ex AF, AF'
+
+    ; il pin RS è tenuto a 0 scrivendo tutti i bit
+
+    ld A, C
+    and 0xf0
+    call write_bits
+
+    ld A, C
+    rl A
+    rl A
+    rl A
+    rl A
+    and 0xf0
+    call write_bits
+
+    ex AF, AF'
+    ret
+
+; In C il byte da far uscire
+write_data:
+    ex AF, AF'
+
+    ld A, C
+    and 0f0h
+    or RS_PIN_SET
+    call write_bits
+
+    ld A, C
+    rl A
+    rl A
+    rl A
+    rl A
+    and 0f0h
+    or RS_PIN_SET
+    call write_bits
+
+    ex AF, AF'
+    ret
+
+; In HL l'indirizzo della stringa
+print_string:
+    push HL
+print_string_loop:
+    ld C, (HL)
+    ld A, C
+    or A
+    jr Z, print_string_end
+    call write_data
+    inc HL
+    jr print_string_loop
+print_string_end:
+    pop HL
+    ret
+
+; In HL il numero da convertire
+; In DE l'indirizzo della stringa in cui scrivere
+Num2Dec:
+	ld	BC,-10000
+	call	Num1
+	ld	BC,-1000
+	call	Num1
+	ld	BC,-100
+	call	Num1
+	ld	C,-10
+	call	Num1
+	ld	C,B
+
+Num1:
+	ld	A,'0'-1
+Num2:
+	inc	A
+	add	HL,BC
+	jr	C,Num2
+	sbc	HL,BC
+
+	ld	(DE),A
+	inc	DE
+
+	ret
+
+
+count:
+defw    0
+
+string:
+defm "Ciao da Alex 80!",0
+
+num_str:
+defm "           ", 0
