@@ -1,0 +1,32 @@
+; z80asm -o blink_board_led.bin -l blink_board_led.z80 2> blink_board_led.out 
+
+PORT_A_DATA: EQU 0x0
+PORT_A_CTRL: EQU 0x1
+PORT_B_DATA: EQU 0x2
+PORT_B_CTRL: EQU 0x3
+
+    ORG 0x8000
+boot:
+    ld A, 0Fh    ; Imposta il modo 0 per la porta B
+    out (PORT_B_CTRL), A
+
+    xor A
+
+loop:
+    out (PORT_B_DATA), A
+    inc A
+
+    ld de, 60000
+    call delay
+       
+    jp loop
+
+delay:
+    ex AF, AF'
+delay1_loop:
+    dec de
+    ld a,d
+    or e
+    jp nz, delay1_loop
+    ex AF, AF'
+    ret
