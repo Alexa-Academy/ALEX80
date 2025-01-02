@@ -1,6 +1,6 @@
 # ALEX80
-Computer based on a Zilog Z80 which can be managed by an Arduino Mega
-Computer basato su uno Zilog Z80 che può essere gestito da un Arduino Mega
+Computer based on a Zilog Z80 which can be managed by an Arduino Mega  
+Computer basato su uno Zilog Z80 che può essere gestito da un Arduino Mega  
 
 ## Caratteristiche
 Microprocessore: Z80 6MHz  
@@ -55,6 +55,8 @@ La realizzazione della scheda è descritta in questa serie di video YouTube
 15 - Inizio saldatura su PCB: https://youtu.be/g2DVUZfGPAw  
 16 - Continua la saldatura su PCB: https://youtu.be/GuwJ82NjnYw  
 17 - Terminiamo la saldatura su PCB e facciamo i primi test: https://youtu.be/Bij9ebOSaQI  
+18 - Prova delle varie funzionalità della scheda finita: https://youtu.be/arjoyaLRYoo  
+
 
 ## Versioni della scheda su PCB
 Versione 1.0: Come abbiamo visto nei video 15, 16 e 17 questa prima versione ha qualche problema:  
