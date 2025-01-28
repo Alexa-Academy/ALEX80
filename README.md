@@ -56,6 +56,7 @@ La realizzazione della scheda è descritta in questa serie di video YouTube
 16 - Continua la saldatura su PCB: https://youtu.be/GuwJ82NjnYw  
 17 - Terminiamo la saldatura su PCB e facciamo i primi test: https://youtu.be/Bij9ebOSaQI  
 18 - Prova delle varie funzionalità della scheda finita: https://youtu.be/arjoyaLRYoo  
+19 - Collegamento di una tastiera PS2 tramite il SIO: https://youtu.be/ZvvwGuTVjT0  
 
 
 ## Versioni della scheda su PCB
