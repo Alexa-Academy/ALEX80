@@ -1,0 +1,500 @@
+; z80asm -o test_display_keyboard.bin -l test_display_keyboard.z80 2> test_display_keyboard.out 
+; Codice per test tastiera PS2 collegata al canale A del SIO
+;
+; Video YouTube: https://youtu.be/ZvvwGuTVjT0
+
+; Si ipotizza un clock da 3.6864 MHz -> periodo 270 ns
+
+SIO_A_DATA: EQU 0x08
+SIO_A_CTRL: EQU 0x09
+SIO_B_DATA: EQU 0x0a
+SIO_B_CTRL: EQU 0x0b
+
+IO_OUT_B: EQU 0x10
+
+RS_PIN_SET:     EQU 4 
+EN_PIN_SET:     EQU 8
+EN_PIN_RESET:   EQU 0f7h
+
+
+    ORG 8000h
+boot:
+    ld A, 0x83
+    ld I, A
+
+    call init_sio
+
+    call init_display
+
+    call clear_display
+
+    ld HL, cursor_x
+    ld (HL), 0
+
+    call set_cursor
+
+    ;ld HL, string
+    ;call print_string
+
+    ;ld HL, 0
+main_lp:
+    ;push HL
+    
+    ;call set_cursor
+    
+    ;ld DE, num_str
+    ;call Num2Dec
+    ;ld HL, num_str
+    ;call print_string
+    ;pop HL
+
+    ;inc HL
+
+    ;ld DE, 60000
+    ;call delay
+
+    ;call clear_display
+
+    jp main_lp
+
+; Inizializzazione SIO
+init_sio:
+    ; Impostazioni SIO
+    ; Impostiamo TX and RX per il Canale A
+
+    ; Queste impostazioni sono inviate al canale A
+    ld a,00110000b      ; scrittura in WR0: error reset, seleziona WR0
+    out (SIO_A_CTRL),a
+    ld a,00011000b      ; scrittura in WR0: channel reset
+    out (SIO_A_CTRL),a
+    ld a,00000100b      ; scrittura in WR0: seleziona WR4
+    out (SIO_A_CTRL),a
+    ld a,00000101b      ; scrittura in WR4: presc. 1x, 1 stop bit, parità dispari
+    out (SIO_A_CTRL),a
+    ld a,00000101b      ; scrittura in WR0: seleziona WR5
+    out (SIO_A_CTRL),a
+    ;ld a,11101000b      ; scrittura in WR5: DTR on, TX 8 bits, BREAK off, TX on, RTS off
+    ld a, 0
+    out (SIO_A_CTRL),a
+
+    ; Queste impostazioni sono inviate al canale B (valgono per entrambe i canali)
+    ld a,00000001b      ; scrittura in WR0: seleziona WR1
+    out (SIO_B_CTRL),a
+    ld a,00000100b      ; scrittura in WR1: lo stato influisce sull'interrupt vector
+    ;ld a,00000000b
+    out (SIO_B_CTRL),a
+    ld a,00000010b      ; scrittura in WR0: seleziona WR2
+    out (SIO_B_CTRL),a
+                        ; scrittura in WR2: imposta l'interrupt vector, i bit D3/D2/D1 
+                        ; saranno impostati a seconda del canale e delle condizioni che hanno causato l'interrupt stesso
+                        ; qui consideriamo:
+                        ;    0x0C per ricezione di un carattere sul Canale A
+                        ;    0x0E per condizioni speciali (buffer overrun)
+    
+    ; Queste impostazioni sono inviate al canale A
+    ld a,01h            ; scrittura in WR0: seleziona WR1
+    out (SIO_A_CTRL),a
+    ld a,00011000b      ; interrupt ad ogni carattere ricevuto; la parità non è una condizione speciale
+                        ; buffer overrun è una condizione speciale
+    out (SIO_A_CTRL),a
+
+    ; Abilita RX del SIO canale A
+    ld a,00000011b      ; scrittura in WR0: seleziona WR3
+    out (SIO_A_CTRL),a
+    ld a,11000001b      ; 8 bits/RX char; auto enable OFF; RX enable
+    out (SIO_A_CTRL),a
+
+    ei
+
+    ret
+
+; Inizializzazione display
+init_display:
+    ; Attende 50 ms
+    ld DE, 3900
+    call delay
+    
+    ; Mette a 0 EN e RS (ed in generale tutti i pin della porta)
+    xor A
+    OUT (IO_OUT_B), A
+   
+    ; we start in 8bit mode, try to set 4 bit mode
+    ld A, 30h
+    call write_bits
+    ld DE, 323    
+    call delay ; Attesa di 4,2 ms (da datasheet 4,1 ms)
+
+    ; second try
+    ld A, 30h
+    ld DE, 323
+    call delay ; Attesa di 4,2 ms 
+    call write_bits
+
+    ; third go!
+    ld A, 30h
+    call write_bits  
+    ld DE, 12
+    call delay
+       ; Il datasheet non richiede ritardo
+       ; La libreria Arduino mette anche un ritardo di 150 µs
+
+    ; Imposta interfaccia a 4 bit
+    ld A, 20h
+    call write_bits
+    
+    ; finally, set # lines, font size, etc.
+    ld C, 28h   ; LCD_FUNCTIONSET 0x20  LCD_2LINE 0x08  LCD_1LINE 0x00
+    call write_cmd
+
+    ; turn the display on with no cursor or blinking default
+    ld C, 0ch   ; LCD_DISPLAYCONTROL 0x08  LCD_DISPLAYON  0x04   LCD_CURSOROFF  0x00   LCD_BLINKOFF 0x00
+    call write_cmd  
+
+    call clear_display
+
+    ; Entrymode set: entry left, entry shift decrement
+    ld C, 06h    ; LCD_ENTRYMODESET 0x04   LCD_ENTRYLEFT 0x02  LCD_ENTRYSHIFTDECREMENT 0x00
+    call write_cmd
+
+    ld DE, 76
+    call delay
+
+    ret  
+
+; Cancella display
+clear_display:
+    ld C, 1
+    call write_cmd  
+    ld DE, 200
+    call delay
+    ret
+
+; Imposta posizione del cursore
+set_cursor:
+    exx
+    ld C, 0C0h
+    call write_cmd  
+    ld DE, 200
+    call delay
+    exx
+    ret
+
+delay:
+    ex AF, AF'
+delay1_loop:
+    dec DE
+    ld A,D
+    or E
+    jp nz, delay1_loop
+    ex AF, AF'
+    ret
+
+
+
+; In A il valore da mandare in uscita
+write_bits:
+    exx
+
+    and EN_PIN_RESET
+    out (IO_OUT_B), A
+    ld DE, 7
+    call delay
+
+    or EN_PIN_SET
+    out (IO_OUT_B), A
+    ld DE, 7
+    call delay
+
+    and EN_PIN_RESET
+    out (IO_OUT_B), A
+    ld DE, 7
+    call delay
+
+    exx
+
+    ret
+
+; In C il byte da far uscire
+write_cmd:
+    ex AF, AF'
+
+    ; il pin RS è tenuto a 0 scrivendo tutti i bit
+
+    ld A, C
+    and 0xf0
+    call write_bits
+
+    ld A, C
+    rl A
+    rl A
+    rl A
+    rl A
+    and 0xf0
+    call write_bits
+
+    ex AF, AF'
+    ret
+
+; In C il byte da far uscire
+write_data:
+    ex AF, AF'
+
+    ld A, C
+    and 0f0h
+    or RS_PIN_SET
+    call write_bits
+
+    ld A, C
+    rl A
+    rl A
+    rl A
+    rl A
+    and 0f0h
+    or RS_PIN_SET
+    call write_bits
+
+    ex AF, AF'
+    ret
+
+; In HL l'indirizzo della stringa
+print_string:
+    push HL
+print_string_loop:
+    ld C, (HL)
+    ld A, C
+    or A
+    jr Z, print_string_end
+    call write_data
+    inc HL
+    jr print_string_loop
+print_string_end:
+    pop HL
+    ret
+
+; In HL il numero da convertire
+; In DE l'indirizzo della stringa in cui scrivere
+Num2Dec:
+	ld	BC,-10000
+	call	Num1
+	ld	BC,-1000
+	call	Num1
+	ld	BC,-100
+	call	Num1
+	ld	C,-10
+	call	Num1
+	ld	C,B
+
+Num1:
+	ld	A,'0'-1
+Num2:
+	inc	A
+	add	HL,BC
+	jr	C,Num2
+	sbc	HL,BC
+
+	ld	(DE),A
+	inc	DE
+
+	ret
+
+ds 0x8200 - $  ; Riempie di 00 tutta la memoria fino all'indirizzo 0x8200
+
+cha_rx_int:
+    ex AF, AF'     
+
+    in A, (SIO_A_DATA)    
+    ld B, A
+
+    cp 14h   ; Ctrl left
+    jr NZ, no_ctrl_left_pressed
+    call clear_display
+
+no_ctrl_left_pressed:
+    cp 0F0h
+    jr NZ, no_keybreak
+    ld A, 1
+    ld (key_break), A
+    jr cha_rx_int_ret
+
+no_keybreak:
+    ld A, (key_break)
+    cp 1
+    jr NZ, valid_key
+    ld A, 0
+    ld (key_break), A
+    jr cha_rx_int_ret
+
+valid_key:
+    call lookup_table
+
+    cp 0
+    jr Z, cha_rx_int_ret
+    ld C, A
+    push AF
+    
+    ; Somma a screen la posizione del cursore x e salva il carattere
+    ld HL, screen
+    ld A, (cursor_x)
+    ADD A, L
+    LD L, A
+    ADC A, H
+    SUB L
+    LD H, A
+    ld (HL), C
+
+    ; Incrementa la posizione x del cursore e verifica se è arrivata al fondo
+    ld A, (cursor_x)
+    inc A
+    ld (cursor_x), A
+    cp 16
+    jr NZ, no_wrap
+
+    ; Cancella lo schermo e scrive il testo inserito finora nella prima riga
+    ; e posiziona il cursore nella seconda
+    call clear_display
+    ld B, 16
+    ld HL, screen
+copy_loop:
+    ld C, (HL)
+    call write_data
+    inc HL
+    DJNZ copy_loop
+
+    ld A,0
+    ld (cursor_x), A
+    pop AF
+    ld C, A
+    call write_data
+    call set_cursor
+    jp cha_rx_int_ret
+
+no_wrap: 
+    pop AF
+    ld C, A
+    call write_data
+
+    ;ld HL, 0
+    ;ld L, A
+    ;ld DE, num_str
+    ;call Num2Dec
+    ;ld HL, num_str
+    ;call print_string 
+
+cha_rx_int_ret:
+    ex AF, AF'
+    ei
+    reti
+
+cha_overrun:
+    jp boot ; Se c'è un buffer overrrun riavvia
+
+; Riceve in B il codice del tasto premuto 
+; Restituisce in A il codice ASCII del tasto premuto (o 0 se non riconosciuto)
+lookup_table:
+    ld HL, key_table
+    ld L, B
+    ld A, (HL)
+    ret
+
+
+ds 0x830C - $
+defw    cha_rx_int
+defw    cha_overrun
+
+ds 0x8415 - $
+key_table:
+defb 71h   ;   Q           15
+defb 31h   ;   1           16
+defb 00h   ;               17
+defb 00h   ;               18
+defb 00h   ;               19
+defb 7Ah   ;   Z           1A
+defb 73h   ;   S           1B
+defb 61h   ;   A           1C
+defb 77h   ;   W           1D
+defb 32h   ;   2           1E
+defb 00h   ;               1F
+defb 00h   ;               20
+defb 63h   ;   C           21
+defb 78h   ;   X           22
+defb 64h   ;   D           23
+defb 65h   ;   E           24
+defb 34h   ;   4           25
+defb 33h   ;   3           26
+defb 00h   ;               27
+defb 00h   ;               28
+defb 20h   ;   space       29
+defb 76h   ;   V           2A
+defb 66h   ;   F           2B
+defb 74h   ;   T           2C
+defb 72h   ;   R           2D
+defb 35h   ;   5           2E
+defb 00h   ;               2F
+defb 00h   ;               30
+defb 6Eh   ;   N           31
+defb 62h   ;   B           32
+defb 68h   ;   H           33
+defb 67h   ;   G           34
+defb 79h   ;   Y           35
+defb 36h   ;   6           36
+defb 00h   ;               37
+defb 00h   ;               38
+defb 00h   ;               39
+defb 6Dh   ;   M           3A
+defb 6Ah   ;   J           3B
+defb 75h   ;   U           3C
+defb 37h   ;   7           3D
+defb 38h   ;   8           3E
+defb 00h   ;               3F
+defb 00h   ;               40
+defb 2Ch   ;   ,           41
+defb 6Bh   ;   K           42 
+defb 69h   ;   I           43
+defb 6Fh   ;   O           44
+defb 30h   ;   0           45 
+defb 39h   ;   9           46
+defb 00h   ;               47
+defb 00h   ;               48
+defb 2Eh   ;   .           49
+defb 00h   ;               4A
+defb 6Ch   ;   L           4B
+defb 3Bh   ;   ;           4C
+defb 70h   ;   P           4D
+defb 2Dh   ;   -           4E
+defb 00h   ;               4F
+defb 00h   ;               50
+defb 00h   ;               51
+defb 00h   ;               52
+defb 00h   ;               53
+defb 5Bh   ;   [           54
+defb 3Dh   ;   =           55
+defb 00h   ;               56
+defb 00h   ;               57
+defb 00h   ;               58
+defb 00h   ;               59
+defb 00h   ;               5A
+defb 5Dh   ;   ]           5B
+defb 00h   ;               5C
+defb 5Ch   ;   \           5D
+
+
+count:
+defw    0
+byte_read:
+defb    255
+key_break:
+defb    0
+
+string:
+defm "Ciao da Alex 80!",0
+
+num_str:
+defm "           ", 0
+
+cursor_x:
+defb 0
+
+screen:
+defm "                ", 0
+
+    
