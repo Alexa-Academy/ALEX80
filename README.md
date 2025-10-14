@@ -49,7 +49,7 @@ La realizzazione della scheda è descritta in questa serie di video YouTube
 9 - Aggiunta dello Z80 CTC - Counter Timer: https://youtu.be/WaMA73MsbgE  
 10 - Quarzo da 6MHz su millefori: https://youtu.be/UldfmqZj3Rk  
 11 - Aggiunta dello Z80 SIO per la comunicazione seriale: https://youtu.be/H8DIwzcfdJA  
-12 - Utilizzo del clock con quarzo oer la temporizzazione del SIO: https://youtu.be/jvysisM3B0E  
+12 - Utilizzo del clock con quarzo per la temporizzazione del SIO: https://youtu.be/jvysisM3B0E  
 13 - Facciamo funzionare il Microsoft BASIC: https://youtu.be/tE3tAP2hR2E  
 14 - Aggiungiamo dei moduli di IO e realizziamo il PCB: https://youtu.be/wMeW58kEyi4  
 15 - Inizio saldatura su PCB: https://youtu.be/g2DVUZfGPAw  
@@ -58,9 +58,14 @@ La realizzazione della scheda è descritta in questa serie di video YouTube
 18 - Prova delle varie funzionalità della scheda finita: https://youtu.be/arjoyaLRYoo  
 19 - Collegamento di una tastiera PS2 tramite il SIO: https://youtu.be/ZvvwGuTVjT0  
 20 - Collegamento di una matrice NeoPixel: https://youtube.com/live/eqKhF6nzU44  
+24 - ALEX80 e ALEX80µ in kit - Facciamo il punto! Vediamo gli sketch per Arduino in funzione: https://youtu.be/FrGPm7ekkkc  
+27 - ALEX80µ e ALEX80 vediamo le funzionalità degli ultimi sketch per Arduino: https://youtu.be/qI7mw8zR-SI  
+
 
 
 ## Versioni della scheda su PCB
 Versione 1.0: Come abbiamo visto nei video 15, 16 e 17 questa prima versione ha qualche problema:  
 * Come si può vedere nello schema Schematic_Z80-PCB_v1.0.png alcune connessioni di alimentazione si chiamano ancora Vcc e non risultano connesse nel PCB. Vanno rinominate in +5V
-* Altri problemi illustrati nel video riguardano il PCB. Pubblicherò direttamente la versione 1.1 corretta.
+* Altri problemi illustrati nel video riguardano il PCB.
+
+Versione 1.1: Risolti tutti i problemi che aveva la versione 1.0. Ridotte notevolmente le dimensioni della scheda mantenendo le stesse funzionalità.

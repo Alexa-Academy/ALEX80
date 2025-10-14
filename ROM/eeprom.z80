@@ -1,0 +1,56 @@
+; Codice EEPROM per ALEX80 da usare in combinazione con z80_analyzer o alex80_manager_terminal su Arduino MEGA
+; Fa lampeggaire il LED BLU in attesa di ricevere un NMI
+; che fa saltare all'inizio della RAM (dove deve essere
+; caricato il programma che si vuole eseguire)
+;
+; La versione 1.1 del PCB supporta le seguenti memorie:
+; 28C256, 27C256 e 27C64 selezionabili con ponticelli
+;
+; Assemblato con https://www.nongnu.org/z80asm/
+;
+; z80asm -o eeprom.bin -l eeprom.z80 2> eeprom.out 
+
+PORT_A_DATA: EQU 0x0
+PORT_A_CTRL: EQU 0x1
+PORT_B_DATA: EQU 0x2
+PORT_B_CTRL: EQU 0x3
+
+boot:
+    LD SP, 0
+    IM 2
+    DI
+
+; Fa lampeggiare il LED blu collegato al bit 0 della porta B del PIO
+    LD A, 0Fh    ; Imposta il modo 0 per la porta B
+    OUT (PORT_B_CTRL), A
+
+    XOR A
+
+loop:
+    OUT (PORT_B_DATA), A
+    INC A
+
+    LD DE, 60000
+    CALL delay
+
+    OUT (PORT_B_DATA), A
+    INC A
+
+    LD DE, 10000
+    CALL delay
+
+    JP loop
+
+delay:
+    EX AF, AF'
+delay1_loop:
+    DEC de
+    LD a,d
+    OR e
+    JP nz, delay1_loop
+    EX AF, AF'
+    RET
+
+ds 0x66 - $  ; Riempie di 00 tutta la memoria fino all'indirizzo 0x66
+nmi:
+    JP 0x8000
